@@ -1,7 +1,6 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 export interface CompanyProfile {
@@ -108,9 +107,7 @@ export async function updateProfile(data: CompanyProfile): Promise<{ success: bo
             }
         }
 
-        if (headers()) {
-            revalidatePath('/dashboard/profile');
-        }
+        revalidatePath('/dashboard/profile');
         return { success: true, message: "Profile updated successfully." };
     } catch (error) {
         console.error("Failed to update profile:", error);
