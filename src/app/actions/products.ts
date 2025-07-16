@@ -1,6 +1,7 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 export interface Product {
@@ -48,7 +49,9 @@ export async function addProduct(data: ProductData): Promise<Product> {
             throw new Error("Failed to add product.");
         }
 
-        revalidatePath('/dashboard/products');
+        if (headers()) {
+            revalidatePath('/dashboard/products');
+        }
         return product;
     } catch (e) {
         console.error("Failed to add product:", e);
@@ -71,7 +74,9 @@ export async function updateProduct(data: Product): Promise<Product> {
             throw new Error("Failed to update product.");
         }
 
-        revalidatePath('/dashboard/products');
+        if (headers()) {
+            revalidatePath('/dashboard/products');
+        }
         return product;
     } catch (e) {
         console.error("Failed to update product:", e);
@@ -91,7 +96,9 @@ export async function deleteProduct(id: string): Promise<{ success: true, id: st
             throw new Error("Failed to delete product.");
         }
 
-        revalidatePath('/dashboard/products');
+        if (headers()) {
+            revalidatePath('/dashboard/products');
+        }
         return { success: true, id };
     } catch (e) {
         console.error("Failed to delete product:", e);
