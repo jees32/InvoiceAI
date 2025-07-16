@@ -1,0 +1,71 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Profile {
+  id            String    @id @default(cuid())
+  companyName   String
+  gstNumber     String?
+  address       String?
+  contactNumber String?
+  supportNumber String?
+  logoUrl       String?
+  invoices      Invoice[]
+}
+
+model InvoiceTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  component   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id              String       @id @default(cuid())
+  invoiceNumber   String       @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAddress String
+  issueDate       DateTime
+  dueDate         DateTime
+  status          String       @default("DRAFT")
+  subtotal        Float
+  totalGst        Float
+  totalAmount     Float
+  profileId       String
+  profile         Profile      @relation(fields: [profileId], references: [id])
+  items           InvoiceItem[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model InvoiceItem {
+  id        String  @id @default(cuid())
+  name      String
+  quantity  Int
+  price     Float
+  tax       Float
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id        String  @id @default(cuid())
+  name      String
+  sku       String @unique
+  price     Float
+  inventory Int
+  tax       Float
+}
