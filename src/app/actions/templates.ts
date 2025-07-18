@@ -1,6 +1,6 @@
 'use server';
 
-import { createSupabaseServerClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
 import type { TemplateType } from '@/types/invoice';
 
 export interface Template {
@@ -20,14 +20,20 @@ const templatesToSeed: Template[] = [
 
 export async function seedTemplates() {
     try {
-        const supabase = createSupabaseServerClient();
-        const { error } = await supabase
-            .from('templates')
-            .upsert(templatesToSeed, { onConflict: 'id' });
-
-        if (error) {
-            console.error("Failed to seed templates:", error);
-            return { success: false, message: "Could not seed templates due to a server error." };
+        for (const template of templatesToSeed) {
+            await prisma.invoiceTemplate.upsert({
+                where: { id: template.id },
+                update: {
+                    name: template.name,
+                    color: template.color
+                },
+                create: {
+                    id: template.id,
+                    name: template.name,
+                    color: template.color,
+                    component: template.id // Store the component name
+                }
+            });
         }
 
         return { success: true, message: `${templatesToSeed.length} templates seeded successfully.` };
@@ -39,20 +45,17 @@ export async function seedTemplates() {
 
 export async function getTemplates(): Promise<Template[]> {
     try {
-        const supabase = createSupabaseServerClient();
-        const { data, error } = await supabase
-            .from('templates')
-            .select('*')
-            .order('name');
+        const templates = await prisma.invoiceTemplate.findMany({
+            orderBy: { name: 'asc' }
+        });
 
-        if (error) {
-            console.error("Failed to fetch templates from Supabase:", error);
-            return [];
-        }
-
-        return data || [];
+        return templates.map(template => ({
+            id: template.id as TemplateType,
+            name: template.name,
+            color: template.color
+        }));
     } catch (error) {
-        console.error("Failed to fetch templates from Supabase:", error);
+        console.error("Failed to fetch templates from Prisma:", error);
         return [];
     }
 }

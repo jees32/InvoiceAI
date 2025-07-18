@@ -1,7 +1,8 @@
 'use server';
 
-import { createSupabaseServerClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@clerk/nextjs/server';
 
 export interface Product {
     id: string;
@@ -14,91 +15,132 @@ export interface Product {
 
 export type ProductData = Omit<Product, 'id'>;
 
-const PRODUCTS_TABLE = 'products';
-
 export async function getProducts(): Promise<Product[]> {
     try {
-        const supabase = createSupabaseServerClient();
-        const { data, error } = await supabase
-            .from(PRODUCTS_TABLE)
-            .select('*')
-            .order('name');
-
-        if (error) {
-            console.error("Failed to fetch products from Supabase:", error);
+        const { userId } = await auth();
+        if (!userId) {
             return [];
         }
 
-        return data || [];
+        const products = await prisma.product.findMany({
+            where: {
+                OR: [
+                    { userId: userId },
+                    { userId: null } // Global products
+                ]
+            },
+            orderBy: { name: 'asc' }
+        });
+
+        return products.map(product => ({
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            price: Number(product.price),
+            inventory: product.inventory,
+            tax: Number(product.tax)
+        }));
     } catch (error) {
-        console.error("Failed to fetch products from Supabase:", error);
+        console.error("Failed to fetch products from Prisma:", error);
         return [];
     }
 }
 
 export async function addProduct(data: ProductData): Promise<Product> {
     try {
-        const supabase = createSupabaseServerClient();
-        const { data: product, error } = await supabase
-            .from(PRODUCTS_TABLE)
-            .insert(data)
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Failed to add product:", error);
-            throw new Error("Failed to add product.");
+        const { userId } = await auth();
+        if (!userId) {
+            throw new Error('User not authenticated');
         }
 
+        const product = await prisma.product.create({
+            data: {
+                name: data.name,
+                sku: data.sku,
+                price: data.price,
+                inventory: data.inventory,
+                tax: data.tax,
+                userId
+            }
+        });
+
         revalidatePath('/dashboard/products');
-        return product;
-    } catch (e) {
-        console.error("Failed to add product:", e);
+        
+        return {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            price: Number(product.price),
+            inventory: product.inventory,
+            tax: Number(product.tax)
+        };
+    } catch (error) {
+        console.error("Failed to add product:", error);
         throw new Error("Failed to add product.");
     }
 }
 
 export async function updateProduct(data: Product): Promise<Product> {
     try {
-        const { id, ...productData } = data;
-        const supabase = createSupabaseServerClient();
-        const { data: product, error } = await supabase
-            .from(PRODUCTS_TABLE)
-            .update(productData)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Failed to update product:", error);
-            throw new Error("Failed to update product.");
+        const { userId } = await auth();
+        if (!userId) {
+            throw new Error('User not authenticated');
         }
 
+        const product = await prisma.product.update({
+            where: { 
+                id: data.id,
+                OR: [
+                    { userId: userId },
+                    { userId: null }
+                ]
+            },
+            data: {
+                name: data.name,
+                sku: data.sku,
+                price: data.price,
+                inventory: data.inventory,
+                tax: data.tax
+            }
+        });
+
         revalidatePath('/dashboard/products');
-        return product;
-    } catch (e) {
-        console.error("Failed to update product:", e);
+        
+        return {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            price: Number(product.price),
+            inventory: product.inventory,
+            tax: Number(product.tax)
+        };
+    } catch (error) {
+        console.error("Failed to update product:", error);
         throw new Error("Failed to update product.");
     }
 }
 
 export async function deleteProduct(id: string): Promise<{ success: true, id: string }> {
     try {
-        const supabase = createSupabaseServerClient();
-        const { error } = await supabase
-            .from(PRODUCTS_TABLE)
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error("Failed to delete product:", error);
-            throw new Error("Failed to delete product.");
+        const { userId } = await auth();
+        if (!userId) {
+            throw new Error('User not authenticated');
         }
+
+        await prisma.product.delete({
+            where: { 
+                id,
+                OR: [
+                    { userId: userId },
+                    { userId: null }
+                ]
+            }
+        });
 
         revalidatePath('/dashboard/products');
         return { success: true, id };
-    } catch (e) {
-        console.error("Failed to delete product:", e);
+    } catch (error) {
+        console.error("Failed to delete product:", error);
         throw new Error("Failed to delete product.");
     }
 }

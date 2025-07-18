@@ -1,7 +1,8 @@
 'use server';
 
-import { createSupabaseServerClient } from '@/lib/supabase';
+import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@clerk/nextjs/server';
 
 export interface CompanyProfile {
     id?: string;
@@ -12,101 +13,90 @@ export interface CompanyProfile {
     supportNumber?: string;
     logoUrl?: string;
     defaultTax?: number;
-    created_at?: string;
-    updated_at?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
-
-const PROFILE_TABLE = 'profiles';
 
 export async function getProfile(): Promise<CompanyProfile | null> {
     try {
-        const supabase = createSupabaseServerClient();
-        const { data, error } = await supabase
-            .from(PROFILE_TABLE)
-            .select('*')
-            .limit(1)
-            .single();
+        const { userId } = await auth();
+        if (!userId) {
+            throw new Error('User not authenticated');
+        }
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                // No rows returned, which is fine for a new profile
-                return null;
-            }
-            console.error("Failed to fetch profile from Supabase:", error);
+        const profile = await prisma.profile.findFirst({
+            where: { userId }
+        });
+
+        if (!profile) {
             return null;
         }
 
-        // Map snake_case database columns to camelCase for frontend
         return {
-            id: data.id,
-            companyName: data.company_name,
-            gstNumber: data.gst_number,
-            address: data.address,
-            contactNumber: data.contact_number,
-            supportNumber: data.support_number,
-            logoUrl: data.logo_url,
-            defaultTax: data.default_tax,
-            created_at: data.created_at,
-            updated_at: data.updated_at
+            id: profile.id,
+            companyName: profile.companyName,
+            gstNumber: profile.gstNumber,
+            address: profile.address,
+            contactNumber: profile.contactNumber,
+            supportNumber: profile.supportNumber,
+            logoUrl: profile.logoUrl,
+            defaultTax: profile.defaultTax ? Number(profile.defaultTax) : 0,
+            createdAt: profile.createdAt,
+            updatedAt: profile.updatedAt
         };
     } catch (error) {
-        console.error("Failed to fetch profile from Supabase:", error);
+        console.error("Failed to fetch profile from Prisma:", error);
         return null;
     }
 }
 
 export async function updateProfile(data: CompanyProfile): Promise<{ success: boolean; message: string }> {
     try {
-        const supabase = createSupabaseServerClient();
-        // First, check if a profile already exists
-        const { data: existingProfile } = await supabase
-            .from(PROFILE_TABLE)
-            .select('id')
-            .limit(1)
-            .single();
+        const { userId } = await auth();
+        if (!userId) {
+            throw new Error('User not authenticated');
+        }
 
-        let result;
-        
+        // Ensure user exists in database
+        await prisma.user.upsert({
+            where: { id: userId },
+            update: {},
+            create: { id: userId, email: '' } // Email will be updated by webhook
+        });
+
+        // Check if profile exists
+        const existingProfile = await prisma.profile.findFirst({
+            where: { userId }
+        });
+
         if (existingProfile) {
             // Update existing profile
-            const { error } = await supabase
-                .from(PROFILE_TABLE)
-                .update({
-                    company_name: data.companyName,
-                    gst_number: data.gstNumber,
+            await prisma.profile.update({
+                where: { id: existingProfile.id },
+                data: {
+                    companyName: data.companyName,
+                    gstNumber: data.gstNumber,
                     address: data.address,
-                    contact_number: data.contactNumber,
-                    support_number: data.supportNumber,
-                    logo_url: data.logoUrl,
-                    default_tax: data.defaultTax,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', existingProfile.id);
-
-            if (error) {
-                console.error("Failed to update profile:", error);
-                return { success: false, message: error.message || "Failed to update profile." };
-            }
+                    contactNumber: data.contactNumber,
+                    supportNumber: data.supportNumber,
+                    logoUrl: data.logoUrl,
+                    defaultTax: data.defaultTax,
+                }
+            });
         } else {
             // Create new profile
-            const { error } = await supabase
-                .from(PROFILE_TABLE)
-                .insert({
-                    company_name: data.companyName,
-                    gst_number: data.gstNumber,
+            await prisma.profile.create({
+                data: {
+                    companyName: data.companyName,
+                    gstNumber: data.gstNumber,
                     address: data.address,
-                    contact_number: data.contactNumber,
-                    support_number: data.supportNumber,
-                    logo_url: data.logoUrl,
-                    default_tax: data.defaultTax,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                });
-
-            if (error) {
-                console.error("Failed to create profile:", error);
-                return { success: false, message: error.message || "Failed to create profile." };
-            }
+                    contactNumber: data.contactNumber,
+                    supportNumber: data.supportNumber,
+                    logoUrl: data.logoUrl,
+                    defaultTax: data.defaultTax,
+                    userId
+                }
+            });
         }
 
         revalidatePath('/dashboard/profile');

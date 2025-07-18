@@ -11,7 +11,6 @@ import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { getProfile, updateProfile, type CompanyProfile } from "@/app/actions/profile";
-import { supabase } from "@/lib/supabase";
 
 const defaultProfile: CompanyProfile = {
     companyName: '',
@@ -76,21 +75,13 @@ export default function ProfilePage() {
         let updatedProfileData = { ...profile };
 
         try {
+            // TODO: Implement file upload with a different service (e.g., Cloudinary, AWS S3)
+            // For now, we'll skip logo upload functionality
             if (logoFile) {
-                const fileName = `${Date.now()}_${logoFile.name}`;
-                const { data, error } = await supabase.storage
-                    .from('logos')
-                    .upload(fileName, logoFile);
-
-                if (error) {
-                    throw new Error(`Failed to upload logo: ${error.message}`);
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('logos')
-                    .getPublicUrl(fileName);
-
-                updatedProfileData.logoUrl = publicUrl;
+                toast({
+                    title: "Logo Upload",
+                    description: "Logo upload functionality will be implemented with a file storage service.",
+                });
             }
 
             const result = await updateProfile(updatedProfileData);
