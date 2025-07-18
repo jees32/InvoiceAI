@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
 export interface Product {
@@ -18,6 +18,7 @@ const PRODUCTS_TABLE = 'products';
 
 export async function getProducts(): Promise<Product[]> {
     try {
+        const supabase = createSupabaseServerClient();
         const { data, error } = await supabase
             .from(PRODUCTS_TABLE)
             .select('*')
@@ -37,6 +38,7 @@ export async function getProducts(): Promise<Product[]> {
 
 export async function addProduct(data: ProductData): Promise<Product> {
     try {
+        const supabase = createSupabaseServerClient();
         const { data: product, error } = await supabase
             .from(PRODUCTS_TABLE)
             .insert(data)
@@ -59,6 +61,7 @@ export async function addProduct(data: ProductData): Promise<Product> {
 export async function updateProduct(data: Product): Promise<Product> {
     try {
         const { id, ...productData } = data;
+        const supabase = createSupabaseServerClient();
         const { data: product, error } = await supabase
             .from(PRODUCTS_TABLE)
             .update(productData)
@@ -81,6 +84,7 @@ export async function updateProduct(data: Product): Promise<Product> {
 
 export async function deleteProduct(id: string): Promise<{ success: true, id: string }> {
     try {
+        const supabase = createSupabaseServerClient();
         const { error } = await supabase
             .from(PRODUCTS_TABLE)
             .delete()

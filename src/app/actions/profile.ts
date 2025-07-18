@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
 export interface CompanyProfile {
@@ -20,6 +20,7 @@ const PROFILE_TABLE = 'profiles';
 
 export async function getProfile(): Promise<CompanyProfile | null> {
     try {
+        const supabase = createSupabaseServerClient();
         const { data, error } = await supabase
             .from(PROFILE_TABLE)
             .select('*')
@@ -56,6 +57,7 @@ export async function getProfile(): Promise<CompanyProfile | null> {
 
 export async function updateProfile(data: CompanyProfile): Promise<{ success: boolean; message: string }> {
     try {
+        const supabase = createSupabaseServerClient();
         // First, check if a profile already exists
         const { data: existingProfile } = await supabase
             .from(PROFILE_TABLE)

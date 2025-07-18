@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createSupabaseServerClient } from '@/lib/supabase';
 import type { TemplateType } from '@/types/invoice';
 
 export interface Template {
@@ -20,6 +20,7 @@ const templatesToSeed: Template[] = [
 
 export async function seedTemplates() {
     try {
+        const supabase = createSupabaseServerClient();
         const { error } = await supabase
             .from('templates')
             .upsert(templatesToSeed, { onConflict: 'id' });
@@ -38,6 +39,7 @@ export async function seedTemplates() {
 
 export async function getTemplates(): Promise<Template[]> {
     try {
+        const supabase = createSupabaseServerClient();
         const { data, error } = await supabase
             .from('templates')
             .select('*')
