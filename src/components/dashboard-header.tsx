@@ -29,20 +29,33 @@ export function DashboardHeader() {
     <header className="flex items-center justify-between p-4 border-b bg-background">
       <div className="text-xl font-bold">Dashboard</div>
       {user && (
-        <div className="flex items-center gap-4">
-          {user.user_metadata?.avatar_url && (
-            <img
-              src={user.user_metadata.avatar_url}
-              alt="User Avatar"
-              className="w-10 h-10 rounded-full border"
+        <div className="flex items-center gap-3">
+          <Avatar className="w-8 h-8">
+            <AvatarImage 
+              src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+              alt="User Avatar" 
             />
-          )}
-          <button
+            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
+              {getInitials(user.user_metadata?.first_name, user.user_metadata?.last_name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col items-start">
+            <span className="text-sm font-medium text-foreground">
+              {user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0]}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {user.email}
+            </span>
+          </div>
+          <Button
             onClick={handleLogout}
-            className="px-4 py-2 rounded bg-destructive text-white hover:bg-destructive/80 transition"
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
           >
+            <LogOut className="w-4 h-4 mr-2" />
             Logout
-          </button>
+          </Button>
         </div>
       )}
     </header>
