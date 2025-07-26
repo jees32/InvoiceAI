@@ -1,5 +1,8 @@
-import Link from "next/link"
-import { ArrowUpRight, CreditCard, DollarSign, Package, Users } from "lucide-react"
+'use client';
+import { useEffect, useState } from 'react';
+import { useSupabaseAuth } from '@/lib/SupabaseAuthProvider';
+import Link from "next/link";
+import { ArrowUpRight, CreditCard, DollarSign, Package, Users } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -7,27 +10,34 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-
-// Mock data
-const recentInvoices = [
-  { id: "INV001", customer: "Liam Johnson", amount: "$250.00", status: "Paid" },
-  { id: "INV002", customer: "Olivia Smith", amount: "$150.00", status: "Pending" },
-  { id: "INV003", customer: "Noah Williams", amount: "$350.00", status: "Paid" },
-  { id: "INV004", customer: "Emma Brown", amount: "$450.00", status: "Unpaid" },
-  { id: "INV005", customer: "James Jones", amount: "$550.00", status: "Paid" },
-]
+} from "@/components/ui/card";
 
 export default function Dashboard() {
+  const { user } = useSupabaseAuth();
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      if (!user?.id) return;
+      setLoading(true);
+      const res = await fetch(`/api/dashboard-stats?userId=${user.id}`);
+      const data = await res.json();
+      setStats(data);
+      setLoading(false);
+    }
+    fetchStats();
+  }, [user]);
+
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
@@ -39,9 +49,9 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
+            <div className="text-2xl font-bold">₹{stats ? stats.revenue.toLocaleString('en-IN') : 0}</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from last month
+              {/* You can add growth logic here */}
             </p>
           </CardContent>
         </Card>
@@ -53,21 +63,20 @@ export default function Dashboard() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+12,234</div>
+            <div className="text-2xl font-bold">{stats ? stats.invoiceCount : 0}</div>
             <p className="text-xs text-muted-foreground">
-              +19% from last month
+              {/* You can add growth logic here */}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+2350</div>
+            <div className="text-2xl font-bold">{stats ? stats.uniqueClients : 0}</div>
             <p className="text-xs text-muted-foreground">
-              +180.1% from last month
+              {/* You can add growth logic here */}
             </p>
           </CardContent>
         </Card>
@@ -79,9 +88,9 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{stats ? stats.pendingCount : 0}</div>
             <p className="text-xs text-muted-foreground">
-              2 overdue
+              {/* You can add overdue logic here */}
             </p>
           </CardContent>
         </Card>
@@ -112,28 +121,42 @@ export default function Dashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.id}</TableCell>
-                  <TableCell>{invoice.customer}</TableCell>
-                  <TableCell className="text-right">{invoice.amount}</TableCell>
-                  <TableCell className="text-center">
-                    <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Pending' ? 'secondary' : 'destructive'} 
-                      className={
-                        invoice.status === 'Paid' ? 'bg-green-500/20 text-green-700' :
-                        invoice.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-700' :
-                        'bg-red-500/20 text-red-700'
-                      }
-                    >
-                      {invoice.status}
-                    </Badge>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    Loading...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : stats && stats.recentInvoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8">
+                    No recent invoices found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                stats && stats.recentInvoices.map((invoice: any) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
+                    <TableCell>{invoice.customerName}</TableCell>
+                    <TableCell className="text-right">₹{invoice.totalAmount.toLocaleString('en-IN')}</TableCell>
+                    <TableCell className="text-center">
+                      <Badge variant={invoice.status === 'Paid' ? 'default' : invoice.status === 'Pending' ? 'secondary' : 'destructive'}
+                        className={
+                          invoice.status === 'Paid' ? 'bg-green-500/20 text-green-700' :
+                          invoice.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-700' :
+                          'bg-red-500/20 text-red-700'
+                        }
+                      >
+                        {invoice.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
     </>
-  )
+  );
 }

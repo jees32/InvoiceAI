@@ -2,7 +2,6 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@clerk/nextjs/server';
 
 export interface Product {
     id: string;
@@ -15,44 +14,21 @@ export interface Product {
 
 export type ProductData = Omit<Product, 'id'>;
 
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(userId: string): Promise<Product[]> {
+    if (!userId) return [];
     try {
-        const { userId } = await auth();
-        if (!userId) {
-            return [];
-        }
-
-        const products = await prisma.product.findMany({
-            where: {
-                OR: [
-                    { userId: userId },
-                    { userId: null } // Global products
-                ]
-            },
-            orderBy: { name: 'asc' }
-        });
-
-        return products.map(product => ({
-            id: product.id,
-            name: product.name,
-            sku: product.sku,
-            price: Number(product.price),
-            inventory: product.inventory,
-            tax: Number(product.tax)
-        }));
+        return await prisma.product.findMany({ where: { userId } });
     } catch (error) {
-        console.error("Failed to fetch products from Prisma:", error);
+        console.error('Failed to fetch products from Prisma:', error);
         return [];
     }
 }
 
-export async function addProduct(data: ProductData): Promise<Product> {
+export async function addProduct(data: ProductData & { userId: string }): Promise<Product> {
     try {
-        const { userId } = await auth();
-        if (!userId) {
+        if (!data.userId) {
             throw new Error('User not authenticated');
         }
-
         const product = await prisma.product.create({
             data: {
                 name: data.name,
@@ -60,12 +36,10 @@ export async function addProduct(data: ProductData): Promise<Product> {
                 price: data.price,
                 inventory: data.inventory,
                 tax: data.tax,
-                userId
+                userId: data.userId
             }
         });
-
         revalidatePath('/dashboard/products');
-        
         return {
             id: product.id,
             name: product.name,
@@ -80,18 +54,16 @@ export async function addProduct(data: ProductData): Promise<Product> {
     }
 }
 
-export async function updateProduct(data: Product): Promise<Product> {
+export async function updateProduct(data: Product & { userId: string }): Promise<Product> {
     try {
-        const { userId } = await auth();
-        if (!userId) {
+        if (!data.userId) {
             throw new Error('User not authenticated');
         }
-
         const product = await prisma.product.update({
             where: { 
                 id: data.id,
                 OR: [
-                    { userId: userId },
+                    { userId: data.userId },
                     { userId: null }
                 ]
             },
@@ -103,9 +75,7 @@ export async function updateProduct(data: Product): Promise<Product> {
                 tax: data.tax
             }
         });
-
         revalidatePath('/dashboard/products');
-        
         return {
             id: product.id,
             name: product.name,
@@ -120,13 +90,11 @@ export async function updateProduct(data: Product): Promise<Product> {
     }
 }
 
-export async function deleteProduct(id: string): Promise<{ success: true, id: string }> {
+export async function deleteProduct(id: string, userId: string): Promise<{ success: true, id: string }> {
     try {
-        const { userId } = await auth();
         if (!userId) {
             throw new Error('User not authenticated');
         }
-
         await prisma.product.delete({
             where: { 
                 id,
@@ -136,7 +104,6 @@ export async function deleteProduct(id: string): Promise<{ success: true, id: st
                 ]
             }
         });
-
         revalidatePath('/dashboard/products');
         return { success: true, id };
     } catch (error) {

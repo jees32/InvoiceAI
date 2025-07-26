@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -34,6 +35,7 @@ model Profile {
   supportNumber String?
   logoUrl       String?
   defaultTax    Float?    @default(0)
+  defaultTemplate String? // NEW: user's default invoice template
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
@@ -64,6 +66,7 @@ model Invoice {
   subtotal        Float
   totalGst        Float
   totalAmount     Float
+  templateId      String?      // now optional
   userId          String
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   profileId       String

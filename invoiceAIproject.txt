@@ -1,0 +1,13 @@
+git remote set-url origin https://github.com/jees32/InvoiceAI.git
+
+
+Chettayi@321   for supabase second project  DB and all.
+
+finding product subtotal
+  const subtotal = products.reduce((acc, p) => acc + p.price * p.quantity, 0);
+  const totalGst = products.reduce((acc, p) => acc + (p.price * p.quantity * (p.tax / 100)), 0);
+  const totalAmount = subtotal + totalGst;
+
+
+supabase storage for uploading company profile image does not work, trying cloudinary
+npm install cloudinary

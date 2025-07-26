@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { getProducts, addProduct, updateProduct, deleteProduct, type Product, type ProductData } from "@/app/actions/products"
+import { useSupabaseAuth } from '@/lib/SupabaseAuthProvider';
 
 const emptyProduct: ProductData = {
   name: "",
@@ -128,11 +129,13 @@ export default function ProductsPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+  const { user } = useSupabaseAuth();
 
   const fetchProducts = async () => {
+    if (!user?.id) return setProducts([]);
     try {
       setLoading(true);
-      const fetchedProducts = await getProducts();
+      const fetchedProducts = await getProducts(user.id);
       setProducts(fetchedProducts);
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -148,7 +151,8 @@ export default function ProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-  }, [toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast, user]);
 
   const handleAddClick = () => {
     setSelectedProduct(null);
@@ -166,20 +170,21 @@ export default function ProductsPage() {
   };
 
   const handleFormSubmit = async (data: Product | ProductData) => {
+    if (!user?.id) return;
     if ('id' in data) {
-      await updateProduct(data);
+      await updateProduct({ ...data, userId: user.id });
       toast({ title: "Success", description: "Product updated successfully." });
     } else {
-      await addProduct(data);
+      await addProduct({ ...data, userId: user.id });
       toast({ title: "Success", description: "Product added successfully." });
     }
     fetchProducts(); // Refetch products after submission
   };
 
   const confirmDelete = async () => {
-    if (selectedProduct) {
+    if (selectedProduct && user?.id) {
       try {
-        await deleteProduct(selectedProduct.id);
+        await deleteProduct(selectedProduct.id, user.id);
         toast({ title: "Success", description: "Product deleted successfully." });
         fetchProducts(); // Refetch products
       } catch (error) {

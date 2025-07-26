@@ -11,7 +11,7 @@ import { Logo } from "./logo"
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/invoices", icon: FileText, label: "Invoices" },
-  { href: "/dashboard/invoice-templates", icon: LayoutTemplate, label: "Invoice Templates" },
+  { href: "/dashboard/templates", icon: LayoutTemplate, label: "Templates" },
   { href: "/dashboard/products", icon: Package, label: "Products" },
   { href: "/dashboard/profile", icon: User, label: "Profile" },
 ]

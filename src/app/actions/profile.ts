@@ -2,7 +2,6 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { auth } from '@clerk/nextjs/server';
 
 export interface CompanyProfile {
     id?: string;
@@ -15,34 +14,30 @@ export interface CompanyProfile {
     defaultTax?: number;
     createdAt?: Date;
     updatedAt?: Date;
+    defaultTemplate?: string;
 }
 
-export async function getProfile(): Promise<CompanyProfile | null> {
+export async function getProfile(userId: string): Promise<CompanyProfile | null> {
     try {
-        const { userId } = await auth();
         if (!userId) {
             throw new Error('User not authenticated');
         }
-
-        const profile = await prisma.profile.findFirst({
-            where: { userId }
-        });
-
+        const profile = await prisma.profile.findFirst({ where: { userId } });
         if (!profile) {
             return null;
         }
-
         return {
             id: profile.id,
-            companyName: profile.companyName,
-            gstNumber: profile.gstNumber,
-            address: profile.address,
-            contactNumber: profile.contactNumber,
-            supportNumber: profile.supportNumber,
-            logoUrl: profile.logoUrl,
+            companyName: profile.companyName || '',
+            gstNumber: profile.gstNumber || '',
+            address: profile.address || '',
+            contactNumber: profile.contactNumber || '',
+            supportNumber: profile.supportNumber || '',
+            logoUrl: profile.logoUrl || '',
             defaultTax: profile.defaultTax ? Number(profile.defaultTax) : 0,
             createdAt: profile.createdAt,
-            updatedAt: profile.updatedAt
+            updatedAt: profile.updatedAt,
+            defaultTemplate: (profile as any).defaultTemplate || 'modern',
         };
     } catch (error) {
         console.error("Failed to fetch profile from Prisma:", error);
@@ -50,25 +45,19 @@ export async function getProfile(): Promise<CompanyProfile | null> {
     }
 }
 
-export async function updateProfile(data: CompanyProfile): Promise<{ success: boolean; message: string }> {
+export async function updateProfile(userId: string, data: CompanyProfile): Promise<{ success: boolean; message: string }> {
     try {
-        const { userId } = await auth();
         if (!userId) {
             throw new Error('User not authenticated');
         }
-
         // Ensure user exists in database
         await prisma.user.upsert({
-            where: { id: userId },
+            where: { id: userId || '' },
             update: {},
-            create: { id: userId, email: '' } // Email will be updated by webhook
+            create: { id: userId || '', email: '' } // Email will be updated by webhook
         });
-
         // Check if profile exists
-        const existingProfile = await prisma.profile.findFirst({
-            where: { userId }
-        });
-
+        const existingProfile = await prisma.profile.findFirst({ where: { userId: userId || '' } });
         if (existingProfile) {
             // Update existing profile
             await prisma.profile.update({
@@ -81,24 +70,25 @@ export async function updateProfile(data: CompanyProfile): Promise<{ success: bo
                     supportNumber: data.supportNumber,
                     logoUrl: data.logoUrl,
                     defaultTax: data.defaultTax,
-                }
+                    ...(data.defaultTemplate && { defaultTemplate: data.defaultTemplate }),
+                } as any
             });
         } else {
             // Create new profile
             await prisma.profile.create({
                 data: {
-                    companyName: data.companyName,
+                    companyName: data.companyName || '',
                     gstNumber: data.gstNumber,
                     address: data.address,
                     contactNumber: data.contactNumber,
                     supportNumber: data.supportNumber,
                     logoUrl: data.logoUrl,
                     defaultTax: data.defaultTax,
-                    userId
-                }
+                    userId: userId || '',
+                    defaultTemplate: data.defaultTemplate || 'modern',
+                } as any
             });
         }
-
         revalidatePath('/dashboard/profile');
         return { success: true, message: "Profile updated successfully." };
     } catch (error) {

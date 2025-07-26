@@ -1,39 +1,56 @@
 import type { InvoiceData, TemplateType } from '@/types/invoice'
-import ModernTemplate from './templates/ModernTemplate'
-import ElegantTemplate from './templates/ElegantTemplate'
-import ProfessionalTemplate from './templates/ProfessionalTemplate'
-import MinimalTemplate from './templates/MinimalTemplate'
-import VibrantTemplate from './templates/VibrantTemplate'
-import CorporateTemplate from './templates/CorporateTemplate'
+import CorporateTemplate from './templates/corporate';
+import ElegantTemplate from './templates/elegant';
+import ProfessionalTemplate from './templates/professional';
+import MinimalTemplate from './templates/minimal';
+import ModernTemplate from './templates/modern';
+import type { TemplateProps } from './templates/TemplateProps';
 
 interface InvoicePreviewProps {
   invoiceData: InvoiceData
   template: TemplateType
 }
 
-export default function InvoicePreview({ invoiceData, template }: InvoicePreviewProps) {
-  const renderTemplate = () => {
-    switch (template) {
-      case 'modern':
-        return <ModernTemplate data={invoiceData} />
-      case 'elegant':
-        return <ElegantTemplate data={invoiceData} />
-      case 'professional':
-        return <ProfessionalTemplate data={invoiceData} />
-      case 'minimal':
-        return <MinimalTemplate data={invoiceData} />
-      case 'vibrant':
-        return <VibrantTemplate data={invoiceData} />
-      case 'corporate':
-        return <CorporateTemplate data={invoiceData} />
-      default:
-        return <ModernTemplate data={invoiceData} />
-    }
-  }
+function mapInvoiceDataToTemplateProps(invoiceData: InvoiceData): TemplateProps {
+  return {
+    company: {
+      name: invoiceData.companyName || 'Your Company',
+      address: 'Company Address', // Default value
+      email: 'info@company.com', // Default value
+      phone: '+1 234 567 8900', // Default value
+      gst: 'GST123456789', // Default value
+      logo: '', // Default empty logo
+    },
+    customer: {
+      name: invoiceData.clientName || '',
+      email: '', // Not present in InvoiceData
+      phone: '', // Not present in InvoiceData
+      address: '', // Not present in InvoiceData
+    },
+    products: [], // Not present in InvoiceData
+    subtotal: invoiceData.subtotal || 0,
+    totalGst: invoiceData.gstinAmount || 0, // Use gstinAmount as GST
+    total: invoiceData.totalAmount || 0,
+    invoiceNumber: invoiceData.invoiceNumber,
+    issueDate: invoiceData.invoiceDate,
+    dueDate: invoiceData.dueDate,
+  };
+}
 
-  return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden invoice-preview">
-      {renderTemplate()}
-    </div>
-  )
+export default function InvoicePreview({ invoiceData, template }: InvoicePreviewProps) {
+  const props = mapInvoiceDataToTemplateProps(invoiceData);
+  switch (template) {
+    case 'modern':
+      return <ModernTemplate {...props} />;
+    case 'elegant':
+      return <ElegantTemplate {...props} />;
+    case 'professional':
+      return <ProfessionalTemplate {...props} />;
+    case 'minimal':
+      return <MinimalTemplate {...props} />;
+    case 'corporate':
+      return <CorporateTemplate {...props} />;
+    default:
+      return <ModernTemplate {...props} />;
+  }
 }

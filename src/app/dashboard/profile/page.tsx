@@ -11,6 +11,7 @@ import Image from "next/image";
 import { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { getProfile, updateProfile, type CompanyProfile } from "@/app/actions/profile";
+import { useSupabaseAuth } from '@/lib/SupabaseAuthProvider';
 
 const defaultProfile: CompanyProfile = {
     companyName: '',
@@ -19,11 +20,11 @@ const defaultProfile: CompanyProfile = {
     contactNumber: '',
     supportNumber: '',
     logoUrl: '',
-    defaultTax: 0,
 };
 
 export default function ProfilePage() {
     const { toast } = useToast();
+    const { user } = useSupabaseAuth();
     const [profile, setProfile] = useState<CompanyProfile>(defaultProfile);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -32,8 +33,9 @@ export default function ProfilePage() {
 
     useEffect(() => {
         async function fetchProfile() {
+            if (!user?.id) return;
             setIsLoading(true);
-            const data = await getProfile();
+            const data = await getProfile(user.id);
             if (data) {
                 setProfile(data);
                 if (data.logoUrl) {
@@ -43,7 +45,7 @@ export default function ProfilePage() {
             setIsLoading(false);
         }
         fetchProfile();
-    }, []);
+    }, [user]);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -71,32 +73,65 @@ export default function ProfilePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        
         let updatedProfileData = { ...profile };
 
         try {
-            // TODO: Implement file upload with a different service (e.g., Cloudinary, AWS S3)
-            // For now, we'll skip logo upload functionality
             if (logoFile) {
-                toast({
-                    title: "Logo Upload",
-                    description: "Logo upload functionality will be implemented with a file storage service.",
+                if (!user?.id) throw new Error('User not authenticated');
+                
+                // Validate file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(logoFile.type)) {
+                    throw new Error(`File type ${logoFile.type} not allowed. Please use JPEG, PNG, or GIF.`);
+                }
+                
+                // Validate file size (5MB limit)
+                if (logoFile.size > 5 * 1024 * 1024) {
+                    throw new Error('File size too large. Please use a file smaller than 5MB.');
+                }
+                
+                console.log('Uploading file to Cloudinary:', {
+                    name: logoFile.name,
+                    type: logoFile.type,
+                    size: logoFile.size,
+                    userId: user.id
                 });
+                
+                // Upload to Cloudinary via API route
+                const formData = new FormData();
+                formData.append('file', logoFile);
+                
+                const response = await fetch('/api/upload-logo', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Upload failed');
+                }
+                
+                const result = await response.json();
+                console.log('Cloudinary upload successful:', result);
+                
+                updatedProfileData.logoUrl = result.url;
             }
 
-            const result = await updateProfile(updatedProfileData);
+            if (!user?.id) throw new Error('User not authenticated');
+            const result = await updateProfile(user.id, updatedProfileData);
             
             if (result.success) {
                 toast({
                     title: "Profile Saved",
                     description: "Your company profile has been updated successfully.",
                 });
+                if (updatedProfileData.logoUrl) setLogoPreview(updatedProfileData.logoUrl);
             } else {
-                 toast({ variant: "destructive", title: "Error", description: result.message });
+                toast({ variant: "destructive", title: "Error", description: result.message });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to save profile:", error);
-            toast({ variant: "destructive", title: "Error", description: "An unexpected error occurred while saving." });
+            toast({ variant: "destructive", title: "Error", description: error.message || "An unexpected error occurred while saving." });
         } finally {
             setIsSaving(false);
         }
@@ -104,7 +139,7 @@ export default function ProfilePage() {
 
     if (isLoading) {
         return (
-             <div className="flex h-full w-full items-center justify-center">
+            <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
             </div>
         )
@@ -142,11 +177,11 @@ export default function ProfilePage() {
                             <Input id="supportNumber" type="tel" placeholder="+1 (800) 555-0199" value={profile.supportNumber} onChange={handleInputChange} />
                         </div>
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                         <Label>Company Logo</Label>
                         <div {...getRootProps()} className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer ${isDragActive ? 'border-primary bg-primary/10' : 'border-border'}`}>
                             <input {...getInputProps()} />
-                             <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                            <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                             {logoPreview ? (
                                 <div className="mt-4">
                                     <Image src={logoPreview} alt="Logo preview" width={100} height={100} className="mx-auto rounded-lg object-contain" />

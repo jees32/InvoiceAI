@@ -118,3 +118,7 @@ body {
     padding: 0 !important;
   }
 }
+
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}

@@ -15,4 +15,4 @@ export interface InvoiceData {
   balanceAmount: number
 }
 
-export type TemplateType = 'modern' | 'elegant' | 'professional' | 'minimal' | 'vibrant' | 'corporate'
+export type TemplateType = 'modern' | 'elegant' | 'professional' | 'minimal' | 'vibrant' | 'corporate' | 'service'

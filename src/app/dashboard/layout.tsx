@@ -1,23 +1,41 @@
 'use client';
 import { Loader2 } from 'lucide-react';
 
-import { useUser } from '@clerk/nextjs';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { DashboardHeader } from '@/components/dashboard-header';
+import { useSupabaseAuth } from '@/lib/SupabaseAuthProvider';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { user, isLoaded } = useUser();
+  const { user, session } = useSupabaseAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
-  if (!isLoaded || !user) {
+  useEffect(() => {
+    // Only set loading to false after session is checked
+    if (session !== undefined) setLoading(false);
+  }, [session]);
+
+  useEffect(() => {
+    if (!loading && user === null) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+  if (!user) {
+    return null;
   }
 
   return (
